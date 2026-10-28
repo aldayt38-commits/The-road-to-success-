@@ -3,4 +3,5 @@ main = "worker/rafiq.js"
 compatibility_date = "2024-10-01"
 
 [vars]
-AI_MODEL = "gemini-2.5-flash"
+AI_PROVIDER = "huggingface"
+AI_MODEL = "Qwen/Qwen2.5-7B-Instruct"

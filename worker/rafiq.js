@@ -48,6 +48,68 @@ function limited(ip) {
   return false;
 }
 
+function systemPrompt(ctx, q) {
+  return (
+    "أنت رفيق، معلّم للصف الحادي عشر العلمي وفق رزم قطاع غزة فقط. لا تخترع دروس صفوف أخرى. إن وُجد مقتطف من الرزمة فاعتمد عليه أولاً. التعاريف والقوانين بالفصحى. رتّب الجواب: تعريف، قانون إن وجد، مثال قصير، سؤال يتأكد منه الطالب.\n\nمقتطف الرزمة:\n" +
+    (ctx || "(لا مقتطف)") +
+    "\n\nسؤال الطالب:\n" +
+    q
+  );
+}
+
+async function callHuggingFace(env, prompt) {
+  const model = env.AI_MODEL || "Qwen/Qwen2.5-7B-Instruct";
+  const up = await fetch("https://router.huggingface.co/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.AI_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "معلّم عربي لرزمة الصف 11 علمي غزة. لا تخترع منهاجاً آخر." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 700,
+      temperature: 0.3
+    })
+  });
+  return up;
+}
+
+async function callGemini(env, prompt) {
+  const model = env.AI_MODEL || "gemini-2.5-flash";
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
+    encodeURIComponent(model) +
+    ":generateContent?key=" +
+    encodeURIComponent(env.AI_API_KEY);
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 800, temperature: 0.3 }
+    })
+  });
+}
+
+function textFromHuggingFace(data) {
+  const msg = data && data.choices && data.choices[0] && data.choices[0].message;
+  return (msg && msg.content) || "";
+}
+
+function textFromGemini(data) {
+  return (
+    ((data.candidates || [])[0] &&
+    data.candidates[0].content &&
+    data.candidates[0].content.parts
+      ? data.candidates[0].content.parts.map((p) => p.text || "").join("\n")
+      : "") || ""
+  );
+}
+
 export default {
   async fetch(req, env) {
     const origin = req.headers.get("Origin") || "";
@@ -72,30 +134,12 @@ export default {
     const q = String(body.q || "").trim().slice(0, 1200);
     if (q.length < 2) return json({ error: "short", fallback: true }, 400, origin);
     const ctx = String(body.context || "").slice(0, 3500);
-    const model = env.AI_MODEL || "gemini-2.5-flash";
-
-    const prompt =
-      "أنت رفيق، معلّم للصف الحادي عشر العلمي وفق رزم قطاع غزة فقط. لا تخترع دروس صفوف أخرى. إن وُجد مقتطف من الرزمة فاعتمد عليه أولاً. التعاريف والقوانين بالفصحى. رتّب الجواب: تعريف، قانون إن وجد، مثال قصير، سؤال يتأكد منه الطالب.\n\nمقتطف الرزمة:\n" +
-      (ctx || "(لا مقتطف)") +
-      "\n\nسؤال الطالب:\n" +
-      q;
-
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/" +
-      encodeURIComponent(model) +
-      ":generateContent?key=" +
-      encodeURIComponent(key);
+    const provider = String(env.AI_PROVIDER || "huggingface").toLowerCase();
+    const prompt = systemPrompt(ctx, q);
 
     let up;
     try {
-      up = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 800, temperature: 0.3 }
-        })
-      });
+      up = provider === "gemini" ? await callGemini(env, prompt) : await callHuggingFace(env, prompt);
     } catch {
       return json({ error: "network", fallback: true }, 502, origin);
     }
@@ -106,10 +150,8 @@ export default {
     } catch {
       return json({ error: "parse", fallback: true }, 502, origin);
     }
-    const text = ((data.candidates || [])[0] && data.candidates[0].content && data.candidates[0].content.parts
-      ? data.candidates[0].content.parts.map((p) => p.text || "").join("\n")
-      : "") || "";
+    const text = provider === "gemini" ? textFromGemini(data) : textFromHuggingFace(data);
     if (!text.trim()) return json({ error: "empty", fallback: true }, 502, origin);
-    return json({ html: toHtml(text), source: "gemini" }, 200, origin);
+    return json({ html: toHtml(text), source: provider }, 200, origin);
   }
 };

@@ -1,50 +1,49 @@
-# ربط رفيق بنموذج ذكاء اصطناعي (اختياري)
+# ربط رفيق (حساب تحت 18)
 
-الموقع على GitHub Pages ثابت، لذلك **المفتاح لا يُوضع في الموقع**. المساعد المحلي يعمل دائماً بدون نت وبدون مفتاح.
+جيمي وغروك وأوبن راوتر **يشترطوا 18 سنة**. لا تستخدم حساب أحد غيرك ولا تغيّر تاريخ الميلاد.
 
-المزوّد المختار: **Google Gemini API** — نموذج `gemini-2.5-flash`.
-الخطة المجانية موجودة على الموقع الرسمي وليست بلا حدود. على الخطة المجانية قد تُستخدم المدخلات لتحسين منتجات Google. التفاصيل: https://ai.google.dev/gemini-api/docs/pricing
+المزوّد المناسب حسب شروطه الرسمية: **Hugging Face** — العمر الأدنى **13 سنة**.
+التسجيل: https://huggingface.co/join
+التوكن: https://huggingface.co/settings/tokens
+التوثيق: https://huggingface.co/docs/inference-providers/en/index
+الشروط: https://huggingface.co/terms-of-service
 
-## 1) أنشئ المفتاح من الجوال
+الخطة ليست بلا حدود: رصيد/طلبات مجانية محدودة وقد تتباطأ. إذا خلص الرصيد رفيق يرجع للمساعد المحلي.
 
-1. افتح https://aistudio.google.com/apikey
-2. سجّل بحساب Google.
-3. Create API key → انسخ المفتاح.
-4. **لا تبعث المفتاح في الشات ولا تضعه في GitHub.**
+## من الجوال — التوكن
 
-## 2) انشر العامل (Cloudflare Worker — مجاني محدود)
+1. افتح https://huggingface.co/join وسجّل بإيميلك.
+2. افتح https://huggingface.co/settings/tokens
+3. Create new token → نوع **Read** يكفي للتجربة (أو Fine-grained مع صلاحية Inference).
+4. انسخ التوكن (يبدأ غالباً بـ `hf_`).
+5. **لا تبعثه في الشات ولا تضعه في GitHub ولا في ملفات الموقع.**
 
-من كمبيوتر فيه Node:
+## أين يُحفظ التوكن
+
+على **Cloudflare Worker** كسرّ اسمه حرفياً:
+
+`AI_API_KEY`
+
+اختياري:
+
+| الاسم | القيمة |
+|---|---|
+| `AI_PROVIDER` | `huggingface` |
+| `AI_MODEL` | `Qwen/Qwen2.5-7B-Instruct` |
+
+إذا طلب Cloudflare سناً فوق 18 لنشر العامل، اطلب من ولي أمرك يعمل `wrangler deploy` وأنت تعطيه التوكن على جهازه مباشرة (مو عبر الشات).
 
 ```
 npm i -g wrangler
 wrangler login
 wrangler secret put AI_API_KEY
-```
-
-الصق المفتاح عندما يُطلب. ثم:
-
-```
 wrangler deploy
 ```
 
-يعطيك عنواناً مثل `https://tareeq-najah-rafiq.xxxxx.workers.dev`
-
-## 3) اربط الموقع
-
-في الملف `js/config.js` ضع العنوان فقط (ليس المفتاح):
+بعدها ضع عنوان العامل فقط في `js/config.js`:
 
 ```
 window.TAREEQ_AI_URL = "https://tareeq-najah-rafiq.xxxxx.workers.dev";
 ```
 
-ارفع التعديل إلى GitHub Pages.
-
-## متغيرات البيئة على العامل
-
-| الاسم | مطلوب | مثال |
-|---|---|---|
-| `AI_API_KEY` | نعم (سر) | مفتاح Gemini |
-| `AI_MODEL` | لا | `gemini-2.5-flash` |
-
-بدون `AI_API_KEY` أو عند انقطاع النت أو رفض الطلب، رفيق يرجع للمساعد المحلي.
+بدون هالخطوة رفيق المحلي يشتغل بدون نت وبدون مفتاح.
