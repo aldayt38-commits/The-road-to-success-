@@ -1,0 +1,6 @@
+name = "tareeq-najah-rafiq"
+main = "worker/rafiq.js"
+compatibility_date = "2024-10-01"
+
+[vars]
+AI_MODEL = "gemini-2.5-flash"

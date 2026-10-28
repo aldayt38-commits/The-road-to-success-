@@ -4,3 +4,7 @@ Thumbs.db
 .cache
 .local
 *.log
+.env
+.env.*
+.dev.vars
+.wrangler

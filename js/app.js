@@ -9,7 +9,7 @@
     progress: {},
     chats: {},
     lastQuiz: {},
-    theme: "night",
+    theme: "day",
     bookmarks: [],
     notes: {},
     streak: { days: 0, last: null },
@@ -30,7 +30,7 @@
 
   let S = Object.assign({}, defaults, load());
   if (!S.student) S.student = { name: "طالب", city: "غزة" };
-  if (S.theme !== "day" && S.theme !== "night") S.theme = "night";
+  if (S.theme !== "day" && S.theme !== "night") S.theme = "day";
   let pendingAttach = null;
   let deferredInstall = null;
   window.addEventListener("beforeinstallprompt", (e) => {
@@ -44,7 +44,7 @@
   function applyTheme() {
     document.documentElement.setAttribute("data-theme", S.theme === "day" ? "day" : "night");
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", S.theme === "day" ? "#10244a" : "#0b1730");
+    if (meta) meta.setAttribute("content", S.theme === "day" ? "#ffffff" : "#0e1624");
   }
   function toggleTheme() {
     S.theme = S.theme === "day" ? "night" : "day";
@@ -237,8 +237,8 @@
   ];
   const MOBILE = [
     { id: "dash", icon: "⌂", label: "رئيسية" },
-    { id: "packs", icon: "☰", label: "رزم" },
-    { id: "chat", icon: "✦", label: "رفيق", fab: true },
+    { id: "packs", icon: "▣", label: "رزم" },
+    { id: "chat", icon: "ر", label: "رفيق" },
     { id: "exams", icon: "✎", label: "اختبار" },
     { id: "more", icon: "⋯", label: "المزيد" }
   ];
@@ -268,9 +268,7 @@
       <nav class="mobile-nav">
         ${MOBILE.map(
           (n) =>
-            `<button class="${tabOn(n.id)}${n.fab ? " fab" : ""}" data-go="${n.id}">${n.icon}${
-              n.fab ? "" : "<span>" + n.label + "</span>"
-            }</button>`
+            `<button class="${tabOn(n.id)}" data-go="${n.id}">${n.icon}<span>${n.label}</span></button>`
         ).join("")}
       </nav>
     </div>`;
@@ -278,19 +276,19 @@
 
   function viewMore() {
     return `
-      <div class="page-head"><h2>المزيد</h2><p>التطبيق، المظهر، والأقسام</p></div>
+      <div class="page-head"><h2>المزيد</h2><p>التطبيق والأقسام الأخرى</p></div>
       ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق والاختبارات شغّالين</div>`}
       <div class="card install-box">
-        <h3 style="color:var(--gold-2)">نزّله على الجوال</h3>
-        <p class="muted">يُفتح كتطبيق. الرزم والدروس ورفيق والاختبارات تشتغل بدون نت. يوتيوب وجوجل بدهم نت.</p>
-        <button class="btn-gold" id="btn-install" type="button">إضافة للشاشة الرئيسية</button>
+        <h3>تثبيت على الجوال</h3>
+        <p class="muted">الرزم والدروس ورفيق المحلي والاختبارات تشتغل بدون نت. يوتيوب وجوجل يحتاجوا نت.</p>
+        <button class="btn-primary" id="btn-install" type="button">إضافة للشاشة الرئيسية</button>
       </div>
       <div class="card theme-row">
         <p style="margin-bottom:8px"><b>المظهر</b></p>
-        <button class="btn-blue" id="btn-theme" type="button">${S.theme === "day" ? "حوّل لليلي" : "حوّل لنهاري"}</button>
+        <button class="btn-blue" id="btn-theme" type="button">${S.theme === "day" ? "الوضع الليلي" : "الوضع النهاري"}</button>
       </div>
       <div class="more-list">
-        <button class="choice" data-go="subjects">المواد الثمانية</button>
+        <button class="choice" data-go="subjects">المواد</button>
         <button class="choice" data-go="cards">بطاقات المصطلحات</button>
         <button class="choice" data-go="schedule">الجدول الأسبوعي</button>
         <button class="choice" data-go="progress">تقدّمي</button>
@@ -301,49 +299,38 @@
   }
 
   function viewDash() {
-    const o = overall();
     const cont = window.LESSONS.find((l) => !S.progress[l.id]?.done) || window.LESSONS[0];
     const cs = subjectById(cont.subject);
-    const streak = (S.streak && S.streak.days) || 0;
     return `
       ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق شغّالين</div>`}
       <div class="page-head">
-        <h2>طريق النجاح</h2>
-        <p>حادي عشر علمي · غزة · ${o.p}% من الرزم · ${streak} أيام مذاكرة</p>
+        <h2>مرحباً</h2>
+        <p>حادي عشر علمي · قطاع غزة</p>
       </div>
-      <div class="grid-2" style="margin-bottom:12px">
-        <div class="card stat"><div class="stat-ico">٪</div><div><b>${o.p}%</b><span>${o.d}/${o.all} درس</span></div></div>
-        <div class="card stat"><div class="stat-ico">✎</div><div><b>${Object.keys(S.lastQuiz).length}</b><span>اختبارات</span></div></div>
-      </div>
-      <div class="card continue-card" style="margin-bottom:12px">
-        <p class="muted">${cs.name} · الوحدة ${cont.unit}</p>
-        <h3 style="color:var(--gold-2)">${cont.title}</h3>
+      <div class="card continue-card">
+        <p class="muted">متابعة الدراسة · ${cs.name}</p>
+        <h3>${cont.title}</h3>
         <p class="muted">${cont.summary}</p>
-        <button class="btn-gold" data-go="lesson/${cont.id}">كمّل الدرس</button>
+        <button class="btn-primary" data-go="lesson/${cont.id}">متابعة آخر درس</button>
       </div>
-      <div class="card" style="margin-bottom:12px">
-        <p style="margin-bottom:8px"><b>اسأل رفيق</b></p>
-        <div class="suggest">
-          ${window.SUGGESTIONS.all.slice(0, 4).map((q) => `<button class="ask-chip">${q}</button>`).join("")}
-        </div>
+      <p class="sec">المواد</p>
+      <div class="subj-grid">${subjectCards(window.SUBJECTS)}</div>
+      <div style="margin-top:14px">
+        <button class="btn-blue" data-go="chat">اسأل رفيق</button>
       </div>
-      <h3 style="margin:4px 0 8px;color:var(--gold-2)">الرزم</h3>
-      ${subjectCards(window.SUBJECTS)}
     `;
   }
 
   function subjectCards(list) {
     return list
       .map((s) => {
+        const n = lessonsOf(s.id).length;
         const p = pct(s.id);
         return `
-        <article class="card subj-row" data-go="subject/${s.id}">
+        <article class="subj-tile" data-go="subject/${s.id}">
           <div class="s-icon" style="background:${s.color}">${s.icon}</div>
-          <div style="flex:1;min-width:0">
-            <h3>${s.name}</h3>
-            <div class="progress-mini"><i style="width:${p}%"></i></div>
-          </div>
-          <span class="muted">${p}%</span>
+          <b>${s.name}</b>
+          <span class="muted">${n} دروس${p ? " · " + p + "%" : ""}</span>
         </article>`;
       })
       .join("");
@@ -351,8 +338,8 @@
 
   function viewSubjects() {
     return `
-      <div class="page-head"><div><h2>الرزم التعليمية</h2><p>الحادي عشر / علمي وفق قائمة وزارة التربية والتعليم العالي — غزة</p></div></div>
-      <div class="grid-3">${subjectCards(window.SUBJECTS)}</div>
+      <div class="page-head"><h2>المواد</h2><p>حسب رزم الحادي عشر علمي — غزة</p></div>
+      <div class="subj-grid">${subjectCards(window.SUBJECTS)}</div>
       <p class="muted" style="margin-top:16px">${window.META.note}</p>`;
   }
 
@@ -442,42 +429,50 @@
         <span class="tag">${done ? "مكتمل" : "قيد الدراسة"}</span>
       </div>
       <div class="lesson-layout">
-        <div class="card">
-          <div class="tabs" id="ltabs">
-            <button class="tab on" data-tab="explain">الشرح</button>
-            <button class="tab" data-tab="terms">مصطلحات</button>
-            <button class="tab" data-tab="ex">مثال</button>
-            <button class="tab" data-tab="err">أخطاء شائعة</button>
+        <div>
+          <div class="lesson-block prose">
+            <h3>الشرح</h3>
+            ${L.html}
           </div>
-          <div class="prose" id="panel-explain">${L.html}
-            <h3>ماذا تتوقع بعد الدرس؟</h3>
-            <ul>${L.objectives.map((o) => `<li>${o}</li>`).join("")}</ul>
-          </div>
-          <div class="prose hidden" id="panel-terms">
-            ${
-              L.terms.map((t) => `<div class="term"><b>${t.t}</b><span>${t.d}</span></div>`).join("") ||
-              "<p>لا بطاقات إضافية.</p>"
-            }
-            ${L.formulas.map((f) => `<div class="formula">${f.expr}</div><p class="muted">${f.name}</p>`).join("")}
-          </div>
-          <div class="prose hidden" id="panel-ex">
+          ${
+            L.terms && L.terms.length
+              ? `<div class="lesson-block"><h3>التعريف</h3>${L.terms
+                  .map((t) => `<div class="term"><b>${t.t}</b><span>${t.d}</span></div>`)
+                  .join("")}</div>`
+              : ""
+          }
+          ${
+            L.formulas && L.formulas.length
+              ? `<div class="lesson-block"><h3>القانون</h3>${L.formulas
+                  .map((f) => `<div class="formula">${f.expr}</div><p class="muted">${f.name}</p>`)
+                  .join("")}</div>`
+              : ""
+          }
+          <div class="lesson-block prose">
+            <h3>مثال</h3>
             ${
               L.example
                 ? `<p><b>المسألة:</b> ${L.example.q}</p><ol>${L.example.steps
                     .map((st) => `<li>${st}</li>`)
                     .join("")}</ol><div class="callout"><b>الإجابة:</b> ${L.example.ans}</div>`
-                : "<p>تدرّب من الشرح ثم اسأل رفيق.</p>"
+                : "<p class='muted'>تدرّب من الشرح ثم اسأل رفيق.</p>"
             }
           </div>
-          <div class="prose hidden" id="panel-err">
-            <ul>${(L.mistakes || []).map((m) => `<li>${m}</li>`).join("") || "<li>راجع القوانين قبل التعويض.</li>"}</ul>
+          <div class="lesson-block">
+            <h3>سؤال تدريبي</h3>
+            <ul>${(L.objectives || []).map((o) => `<li>${o}</li>`).join("")}</ul>
+            ${
+              L.mistakes && L.mistakes.length
+                ? `<div class="callout warn"><b>أخطاء شائعة:</b> ${L.mistakes[0]}</div>`
+                : ""
+            }
           </div>
-          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
             <button class="tab on" id="btn-done">${done ? "أُنجز ✓" : "علّم كمكتمل"}</button>
             <button class="tab" id="btn-star">${starred ? "★ محفوظ" : "☆ احفظ"}</button>
-            <button class="tab" data-go="chat/${s.id}">اسأل رفيق عن هذا الدرس</button>
-            ${prev ? `<button class="tab" data-go="lesson/${prev.id}">الدرس السابق</button>` : ""}
-            ${next ? `<button class="tab" data-go="lesson/${next.id}">الدرس التالي</button>` : ""}
+            <button class="tab" data-go="chat/${s.id}">اسأل رفيق</button>
+            ${prev ? `<button class="tab" data-go="lesson/${prev.id}">السابق</button>` : ""}
+            ${next ? `<button class="tab" data-go="lesson/${next.id}">التالي</button>` : ""}
           </div>
         </div>
         <aside>
@@ -521,9 +516,9 @@
   function welcomeChat() {
     return {
       role: "ai",
-      html: `<p>أهلين، أنا <b>رفيق</b> — أستاذ الرزمة.</p>
-        <p>اسأل تعريف، شرح، حل مسألة، أو افتح صفحة. برّتب الجواب زي الحصة، ومش برمي روابط إلا إذا طلبت يوتيوب أو جوجل.</p>
-        <p class="muted">بدون نت: الرزم والشات والاختبارات. يوتيوب وجوجل بدهم نت.</p>`
+      html: `<p>أنا <b>رفيق</b>، معلّم الرزمة.</p>
+        <p>اسأل تعريفاً أو شرحاً أو مسألة. الجواب من رزمة 11 علمي غزة.</p>
+        <p class="muted">بدون نت أجاوب محلياً. النموذج السحابي يعمل فقط بعد إعداد المفتاح على العامل.</p>`
     };
   }
 
@@ -1259,26 +1254,42 @@
     return (res.data && res.data.text) || "";
   }
 
-  function sendChat(text) {
+  async function sendChat(text) {
     const r = route();
     const onChat = r.page === "chat";
     const sid = onChat ? r.id : null;
     const key = chatKey(sid);
     S.chats[key] = S.chats[key] || [];
-    const label = pendingAttach ? text + "  [" + pendingAttach.name + "]" : text;
-    S.chats[key].push({ role: "user", text: label });
-    const ans = window.Rafiq.ask(text, {
-      subject: sid || null,
-      attachmentText: pendingAttach && pendingAttach.text,
-      attachmentName: pendingAttach && pendingAttach.name
-    });
+    const attach = pendingAttach;
     pendingAttach = null;
-    S.chats[key].push({ role: "ai", html: ans.html, sources: ans.sources });
-    if (S.chats[key].length > 40) S.chats[key] = S.chats[key].slice(-40);
+    const label = attach ? text + "  [" + attach.name + "]" : text;
+    S.chats[key].push({ role: "user", text: label });
     persist();
-    if (S.autoSpeak) speakText(stripSpeak(ans.html));
     if (!onChat) go("/chat" + (sid ? "/" + sid : ""));
     else render();
+    const local = window.Rafiq.ask(text, {
+      subject: sid || null,
+      attachmentText: attach && attach.text,
+      attachmentName: attach && attach.name
+    });
+    let html = local.html;
+    let note = "";
+    if (window.TareeqAI && window.TareeqAI.enabled()) {
+      const cloud = await window.TareeqAI.ask(text, {
+        subject: sid || null,
+        context: String(local.html || "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+      });
+      if (cloud && cloud.html) html = cloud.html;
+      else note = `<p class="fallback-note">تعذر النموذج السحابي — الجواب من الرزمة المحلية.</p>`;
+    }
+    S.chats[key].push({ role: "ai", html: html + note, sources: local.sources });
+    if (S.chats[key].length > 40) S.chats[key] = S.chats[key].slice(-40);
+    persist();
+    if (S.autoSpeak) speakText(stripSpeak(html));
+    render();
   }
 
   function gradeQuiz(form) {

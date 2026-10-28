@@ -1,4 +1,4 @@
-const CACHE = "tareeq-najah-v3";
+const CACHE = "tareeq-najah-v4";
 const CORE = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const CORE = [
   "./js/app.js",
   "./js/ai.js",
   "./js/solver.js",
+  "./js/config.js",
+  "./js/cloud.js",
   "./data/subjects.js",
   "./data/lessons.js",
   "./data/quizzes.js",
