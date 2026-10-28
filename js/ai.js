@@ -132,8 +132,9 @@
       .filter((L) => L.subject !== "christian")
       .filter((L) => !subject || L.subject === subject)
       .map((L) => {
+        const termTxt = (L.terms || []).map((t) => t.t + " " + t.d).join(" ");
         const blob = norm(
-          L.title + " " + L.unitTitle + " " + L.summary + " " + (L.keywords || []).join(" ") + " " + strip(L.html)
+          L.title + " " + L.unitTitle + " " + L.summary + " " + termTxt + " " + (L.keywords || []).join(" ") + " " + strip(L.html)
         );
         let s = 0;
         toks.forEach((t) => {
@@ -238,18 +239,14 @@
   }
 
   function helpHtml() {
-    return `<p>أنا <b>رفيق</b> — أستاذ الرزمة، مش محرّك بحث.</p>
-      <p>احكِ عادي: اشرح، عرّف، حلّ، لخّص، افتح صفحة. بجاوب من رزمة 11 علمي غزة.</p>
-      <ul>
-        <li>بدون نت: الشرح، الرزم، الاختبارات</li>
-        <li>مع نت: يوتيوب وجوجل — بس إذا طلبتهم</li>
-      </ul>
-      <p>مثال: «اشرح قوانين نيوتن» · «حلّي كتلة 2 كغ وقوة 10 ن» · «افتح صفحة 10 كيمياء»</p>`;
+    return `<p>أنا <b>رفيق</b>. بجاوب من الرزمة على جهازك — بدون مفتاح وبدون نت.</p>
+      <p>احكِ عادي: اشرح، عرّف، حلّ، لخّص، افتح صفحة.</p>
+      <p>مثال: «اشرح قوانين نيوتن» · «حلّي كتلة 2 كغ وقوة 10 ن»</p>`;
   }
 
   function greetHtml() {
     return `<p>وعليكم السلام — أهلين.</p>
-      <p>اسأل أي سؤال من الرزمة، وبرّتبلك الحصة: تعريف، قانون، مثال، وسؤال تتأكد منه.</p>`;
+      <p>اسأل من الرزمة: تعريف، قانون، مثال. الجواب على الجهاز، بدون نت.</p>`;
   }
 
   function attachSummary(text) {

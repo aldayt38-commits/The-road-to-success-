@@ -511,9 +511,8 @@
   function welcomeChat() {
     return {
       role: "ai",
-      html: `<p>أنا <b>رفيق</b>، معلّم الرزمة.</p>
-        <p>اسأل تعريفاً أو شرحاً أو مسألة. الجواب من رزمة 11 علمي غزة.</p>
-        <p class="muted">بدون نت أجاوب محلياً. النموذج السحابي يعمل فقط بعد إعداد المفتاح على العامل.</p>`
+      html: `<p>أنا <b>رفيق</b>. بدرّس من الرزمة على جهازك.</p>
+        <p>اسأل تعريف أو شرح أو مسألة — بدون مفتاح وبدون نت.</p>`
     };
   }
 
@@ -602,7 +601,7 @@
           <header class="chat-head">
             <div>
               <h2><span class="rafiq-dot">ر</span> رفيق</h2>
-              <p>${s ? s.name : "كل الرزم"} · يدرّس من الرزمة</p>
+              <p>${s ? s.name : "كل الرزم"} · بدون نت</p>
             </div>
             <div style="display:flex;gap:6px">
               <button class="tab" id="newchat" type="button">جديد</button>
@@ -1256,20 +1255,8 @@
       attachmentText: attach && attach.text,
       attachmentName: attach && attach.name
     });
-    let html = local.html;
-    let note = "";
-    if (window.TareeqAI && window.TareeqAI.enabled()) {
-      const cloud = await window.TareeqAI.ask(text, {
-        subject: sid || null,
-        context: String(local.html || "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-      });
-      if (cloud && cloud.html) html = cloud.html;
-      else note = `<p class="fallback-note">تعذر النموذج السحابي — الجواب من الرزمة المحلية.</p>`;
-    }
-    S.chats[key].push({ role: "ai", html: html + note, sources: local.sources });
+    const html = local.html;
+    S.chats[key].push({ role: "ai", html, sources: local.sources });
     if (S.chats[key].length > 40) S.chats[key] = S.chats[key].slice(-40);
     persist();
     if (S.autoSpeak) speakText(stripSpeak(html));
