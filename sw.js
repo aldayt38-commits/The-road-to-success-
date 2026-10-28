@@ -1,5 +1,4 @@
-/* طريق النجاح — كاش محلي للموقع */
-const CACHE = "tareeq-najah-v2";
+const CACHE = "tareeq-najah-v3";
 const CORE = [
   "./",
   "./index.html",
@@ -15,8 +14,6 @@ const CORE = [
   "./data/videos.js",
   "./data/teachers.js",
   "./assets/logo.png",
-  "./assets/hero.png",
-  "./assets/chat-tutor.png",
   "./manifest.webmanifest"
 ];
 
@@ -41,10 +38,17 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) return;
   e.respondWith(
     caches.match(req).then((hit) => {
-      if (hit) return hit;
+      if (hit) {
+        fetch(req)
+          .then((res) => {
+            if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
+          })
+          .catch(() => {});
+        return hit;
+      }
       return fetch(req)
         .then((res) => {
-          if (res && res.ok && url.pathname.indexOf("/assets/") !== -1) {
+          if (res && res.ok) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
           }

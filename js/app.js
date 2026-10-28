@@ -2,16 +2,14 @@
   const $ = (sel, el = document) => el.querySelector(sel);
   const app = document.getElementById("app");
 
-  const storeKey = "tareeq-najah-v1";
-  const accKey = "tareeq-najah-accounts";
-  const sessKey = "tareeq-najah-session";
+  const storeKey = "tareeq-najah-v2";
   const MOE = "https://www.moe.edu.ps/gaza/subjects";
   const defaults = {
-    student: null,
+    student: { name: "طالب", city: "غزة" },
     progress: {},
     chats: {},
     lastQuiz: {},
-    theme: "gold",
+    theme: "night",
     bookmarks: [],
     notes: {},
     streak: { days: 0, last: null },
@@ -21,7 +19,7 @@
   };
   function load() {
     try {
-      return JSON.parse(localStorage.getItem(storeKey)) || {};
+      return JSON.parse(localStorage.getItem(storeKey) || localStorage.getItem("tareeq-najah-v1")) || {};
     } catch {
       return {};
     }
@@ -29,42 +27,42 @@
   function save(s) {
     localStorage.setItem(storeKey, JSON.stringify(s));
   }
-  function loadAccounts() {
-    try {
-      return JSON.parse(localStorage.getItem(accKey)) || {};
-    } catch {
-      return {};
-    }
-  }
-  function saveAccounts(a) {
-    localStorage.setItem(accKey, JSON.stringify(a));
-  }
-  function hashPass(p) {
-    let h = 5381;
-    const s = String(p || "");
-    for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
-    return "h" + (h >>> 0).toString(16);
-  }
 
-  let ACCOUNTS = loadAccounts();
-  let sessionEmail = localStorage.getItem(sessKey) || "";
   let S = Object.assign({}, defaults, load());
-  if (sessionEmail && ACCOUNTS[sessionEmail] && ACCOUNTS[sessionEmail].data) {
-    S = Object.assign({}, defaults, ACCOUNTS[sessionEmail].data);
-  }
+  if (!S.student) S.student = { name: "طالب", city: "غزة" };
+  if (S.theme !== "day" && S.theme !== "night") S.theme = "night";
   let pendingAttach = null;
-  if (window.pdfjsLib) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  }
+  let deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+  });
 
   function persist() {
     save(S);
-    if (sessionEmail) {
-      ACCOUNTS[sessionEmail] = ACCOUNTS[sessionEmail] || { pass: "", data: S };
-      ACCOUNTS[sessionEmail].data = S;
-      saveAccounts(ACCOUNTS);
+  }
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", S.theme === "day" ? "day" : "night");
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", S.theme === "day" ? "#10244a" : "#0b1730");
+  }
+  function toggleTheme() {
+    S.theme = S.theme === "day" ? "night" : "day";
+    persist();
+    applyTheme();
+    render();
+  }
+  async function installApp() {
+    if (deferredInstall) {
+      deferredInstall.prompt();
+      try {
+        await deferredInstall.userChoice;
+      } catch (e) {}
+      deferredInstall = null;
+      return;
     }
+    const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    toast(isiOS ? "شارك → إضافة إلى الشاشة الرئيسية" : "من قائمة المتصفح: إضافة إلى الشاشة الرئيسية");
   }
 
   function stripSpeak(html) {
@@ -114,9 +112,9 @@
   }
 
   function route() {
-    const h = (location.hash || "#/welcome").replace(/^#/, "");
+    const h = (location.hash || "#/dash").replace(/^#/, "");
     const parts = h.split("/").filter(Boolean);
-    return { page: parts[0] || "welcome", id: parts[1], extra: parts[2] };
+    return { page: parts[0] || "dash", id: parts[1], extra: parts[2] };
   }
 
   function go(path) {
@@ -195,7 +193,7 @@
   }
 
   function appLink() {
-    return location.href.split("#")[0] + "#/welcome";
+    return location.href.split("#")[0];
   }
   async function shareApp() {
     const url = appLink();
@@ -221,58 +219,9 @@
     window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener");
   }
 
-  function enterGuest() {
-    S.student = { name: "ضيف", city: "غزة", guest: true, at: Date.now() };
-    persist();
-    const next = sessionStorage.getItem("tn-next") || "/dash";
-    sessionStorage.removeItem("tn-next");
-    go(next.charAt(0) === "/" ? next : "/" + next.replace(/^#\/?/, ""));
-  }
-
-  /* ---------- welcome ---------- */
   function viewWelcome() {
-    if (S.student) {
-      go("/dash");
-      return "";
-    }
-    return `
-    <section class="welcome">
-      <div class="welcome-copy">
-        <div class="flag-line"><i></i><i></i><i></i><i></i></div>
-        <p class="chip" style="display:inline-block;margin-bottom:12px">المنهج الفلسطيني · الرزم التعليمية · قطاع غزة</p>
-        <h2>طريق النجاح</h2>
-        <p class="lead">تطبيقك للصف الحادي عشر العلمي في غزة. الرزم، رفيق، الوزاري، ويوتيوب الشروح.</p>
-        <div class="chips">
-          <span class="chip">٨ رزم</span>
-          <span class="chip">${window.LESSONS.length} درساً من الفهرس الرسمي</span>
-          <span class="chip">${window.QUIZZES.length} اختباراً</span>
-          <span class="chip">رفيق · دردشة كاملة</span>
-          <span class="chip">يوتيوب + جوجل</span>
-        </div>
-        <form id="onboard" data-auth="login">
-          <div class="tabs" id="auth-tabs">
-            <button type="button" class="tab on" data-auth="login">دخول</button>
-            <button type="button" class="tab" data-auth="register">حساب جديد</button>
-          </div>
-          <label>الإيميل</label>
-          <input name="email" type="email" required placeholder="you@email.com" autocomplete="username" />
-          <label>كلمة المرور</label>
-          <input name="password" type="password" required minlength="4" placeholder="٤ حروف على الأقل" autocomplete="current-password" />
-          <div id="reg-extra" class="hidden">
-            <label>اسمك كما تحب أن يظهر</label>
-            <input name="name" placeholder="مثال: أحمد من غزة" maxlength="40" />
-            <label>المحافظة</label>
-            <select name="city">
-              <option>غزة</option><option>شمال غزة</option><option>دير البلح</option>
-              <option>خانيونس</option><option>رفح</option><option>أخرى / مغترب</option>
-            </select>
-          </div>
-          <button type="submit" id="auth-go">دخول</button>
-          <button type="button" class="guest-btn" id="guest-go">ادخل للتطبيق</button>
-          <p class="muted" style="margin-top:8px">الحساب اختياري — يحفظ تقدمك على هالجوال.</p>
-        </form>
-      </div>
-    </section>`;
+    go("/dash");
+    return "";
   }
 
   const NAV = [
@@ -295,7 +244,6 @@
   ];
 
   function shell(inner, active, mode) {
-    const st = S.student || { name: "طالب", city: "غزة" };
     const tabOn = (id) =>
       active === id ||
       (id === "more" && ["more", "subjects", "videos", "cards", "schedule", "progress"].indexOf(active) >= 0)
@@ -312,8 +260,8 @@
           </div>
         </a>
         <div class="top-actions">
-          <button class="pill" id="btn-share" type="button">شارك</button>
-          <div class="avatar" title="${st.name}">${initials(st.name)}</div>
+          <button class="icon-round" id="btn-theme" type="button" title="نهاري / ليلي">${S.theme === "day" ? "☾" : "☀"}</button>
+          <button class="icon-round" id="btn-install" type="button" title="نزّل التطبيق">↓</button>
         </div>
       </header>
       <main class="content ${mode === "chat" ? "content-chat" : ""}">${inner}</main>
@@ -330,74 +278,72 @@
 
   function viewMore() {
     return `
-      <div class="page-head"><div><h2>المزيد</h2><p>كل أقسام طريق النجاح</p></div></div>
+      <div class="page-head"><h2>المزيد</h2><p>التطبيق، المظهر، والأقسام</p></div>
+      ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق والاختبارات شغّالين</div>`}
+      <div class="card install-box">
+        <h3 style="color:var(--gold-2)">نزّله على الجوال</h3>
+        <p class="muted">يُفتح كتطبيق. الرزم والدروس ورفيق والاختبارات تشتغل بدون نت. يوتيوب وجوجل بدهم نت.</p>
+        <button class="btn-gold" id="btn-install" type="button">إضافة للشاشة الرئيسية</button>
+      </div>
+      <div class="card theme-row">
+        <p style="margin-bottom:8px"><b>المظهر</b></p>
+        <button class="btn-blue" id="btn-theme" type="button">${S.theme === "day" ? "حوّل لليلي" : "حوّل لنهاري"}</button>
+      </div>
       <div class="more-list">
-        <button class="choice" data-go="subjects">▣ المواد الثمانية</button>
-        <button class="choice" data-go="videos">▶ شروح يوتيوب</button>
-        <button class="choice" data-go="cards">◇ بطاقات المصطلحات</button>
-        <button class="choice" data-go="schedule">◷ الجدول الأسبوعي</button>
-        <button class="choice" data-go="progress">◉ تقدّمي وحفظ الحساب</button>
-        <a class="choice" href="${MOE}" target="_blank" rel="noopener">↓ رزم الوزارة PDF</a>
-        <button class="choice" id="logout" type="button">خروج</button>
+        <button class="choice" data-go="subjects">المواد الثمانية</button>
+        <button class="choice" data-go="cards">بطاقات المصطلحات</button>
+        <button class="choice" data-go="schedule">الجدول الأسبوعي</button>
+        <button class="choice" data-go="progress">تقدّمي</button>
+        <button class="choice" data-go="videos">شروح يوتيوب (نت)</button>
+        <a class="choice" href="${MOE}" target="_blank" rel="noopener">رزم الوزارة PDF (نت)</a>
+        <button class="choice" id="btn-share" type="button">شارك الرابط</button>
       </div>`;
   }
 
   function viewDash() {
-    const st = S.student;
     const o = overall();
     const cont = window.LESSONS.find((l) => !S.progress[l.id]?.done) || window.LESSONS[0];
     const cs = subjectById(cont.subject);
     const streak = (S.streak && S.streak.days) || 0;
     return `
+      ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق شغّالين</div>`}
       <div class="page-head">
-        <div>
-          <h2>مرحباً ${st.name.split(" ")[0]}</h2>
-          <p>عام ${window.META.year} · ${window.META.curriculum}</p>
-        </div>
-        <span class="tag gold">رزم قطاع غزة</span>
+        <h2>طريق النجاح</h2>
+        <p>حادي عشر علمي · غزة · ${o.p}% من الرزم · ${streak} أيام مذاكرة</p>
       </div>
-      <div class="grid-4" style="margin-bottom:16px">
-        <div class="card stat"><div class="stat-ico">▣</div><div><b>${o.d}/${o.all}</b><span>دروس مكتملة</span></div></div>
-        <div class="card stat"><div class="stat-ico">٪</div><div><b>${o.p}%</b><span>إنجاز الرزم</span></div></div>
-        <div class="card stat"><div class="stat-ico">✎</div><div><b>${Object.keys(S.lastQuiz).length}</b><span>اختبارات خضتها</span></div></div>
-        <div class="card stat"><div class="stat-ico">✦</div><div><b>${streak}</b><span>أيام مذاكرة متتالية</span></div></div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div class="card stat"><div class="stat-ico">٪</div><div><b>${o.p}%</b><span>${o.d}/${o.all} درس</span></div></div>
+        <div class="card stat"><div class="stat-ico">✎</div><div><b>${Object.keys(S.lastQuiz).length}</b><span>اختبارات</span></div></div>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h3 style="margin-bottom:10px;color:var(--gold-2)">أكمل من حيث توقفت</h3>
-          <p class="muted">${cs.name} · الوحدة ${cont.unit} · ${cont.title}</p>
-          <p style="margin:8px 0">${cont.summary}</p>
-          <button class="tab on" data-go="lesson/${cont.id}">افتح الدرس ←</button>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom:10px;color:var(--gold-2)">دردشة رفيق — اسأل الآن</h3>
-          <div class="suggest">
-            ${window.SUGGESTIONS.all.map((q) => `<button class="ask-chip">${q}</button>`).join("")}
-          </div>
+      <div class="card continue-card" style="margin-bottom:12px">
+        <p class="muted">${cs.name} · الوحدة ${cont.unit}</p>
+        <h3 style="color:var(--gold-2)">${cont.title}</h3>
+        <p class="muted">${cont.summary}</p>
+        <button class="btn-gold" data-go="lesson/${cont.id}">كمّل الدرس</button>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <p style="margin-bottom:8px"><b>اسأل رفيق</b></p>
+        <div class="suggest">
+          ${window.SUGGESTIONS.all.slice(0, 4).map((q) => `<button class="ask-chip">${q}</button>`).join("")}
         </div>
       </div>
-      <h3 style="margin:18px 0 10px;color:var(--gold-2)">مواد الصف — ٨ رزم</h3>
-      <div class="grid-3">${subjectCards(window.SUBJECTS)}</div>
+      <h3 style="margin:4px 0 8px;color:var(--gold-2)">الرزم</h3>
+      ${subjectCards(window.SUBJECTS)}
     `;
   }
 
   function subjectCards(list) {
     return list
       .map((s) => {
-        const n = lessonsOf(s.id).length;
         const p = pct(s.id);
         return `
-        <article class="card subject-card" data-go="subject/${s.id}">
-          <div class="top">
-            <div class="s-icon" style="background:${s.color}">${s.icon}</div>
-            <span class="tag">${n} دروس</span>
-          </div>
-          <div>
+        <article class="card subj-row" data-go="subject/${s.id}">
+          <div class="s-icon" style="background:${s.color}">${s.icon}</div>
+          <div style="flex:1;min-width:0">
             <h3>${s.name}</h3>
-            <p class="muted">${s.blurb}</p>
             <div class="progress-mini"><i style="width:${p}%"></i></div>
-            <p class="muted">${p}% · ${s.book}</p>
           </div>
+          <span class="muted">${p}%</span>
         </article>`;
       })
       .join("");
@@ -540,14 +486,12 @@
             <p class="muted">${s.book}</p>
             <p>${L.summary}</p>
           </div>
-          <div class="card" style="margin-bottom:12px">
-            <b>شروح يوتيوب وجوجل</b>
-            <p class="muted">كل فيديوهات 11 علمي + بحث مقيّد ومفتوح</p>
-            <a class="choice" href="${p.ytAll}" target="_blank" rel="noopener">يوتيوب · كل الشروح</a>
-            <a class="choice" href="${p.ytPal}" target="_blank" rel="noopener">يوتيوب · منهاج فلسطين</a>
-            <a class="choice" href="${p.gOpen}" target="_blank" rel="noopener">جوجل مفتوح</a>
-            <a class="choice" href="${p.gPal}" target="_blank" rel="noopener">جوجل مقيّد</a>
-          </div>
+          <details class="unit-acc" style="margin-bottom:12px">
+            <summary><span>شرح يوتيوب (يحتاج نت)</span></summary>
+            <div class="unit-body">
+              <a class="choice" href="${p.ytPal}" target="_blank" rel="noopener">يوتيوب · المنهاج الفلسطيني</a>
+            </div>
+          </details>
           <div class="card" style="margin-bottom:12px">
             <b>ملاحظتي على الدرس</b>
             <textarea class="note-box" id="lesson-note" placeholder="اكتب فكرة أو سؤال…">${escapeHtml(
@@ -577,10 +521,9 @@
   function welcomeChat() {
     return {
       role: "ai",
-      html: `<p>أهلين، أنا <b>رفيق الرزمة</b> — هون الدردشة كاملة تبع طريق النجاح.</p>
-        <p>احكِ زي أهل غزة: بدي، لخصلي، افتح صفحة، كل فيديوهات يوتيوب، ابحثلي على جوجل.</p>
-        <p>بجاوب من الرزمة أولاً، وبعدين بفتح لك <b>كل شروح 11 علمي على يوتيوب</b> + جوجل المقيّد بالمنهاج + جوجل المفتوح. ارفع PDF أو صورة سؤال.</p>
-        <p class="muted">تحت كل جواب: المراجع ومن وين جاوبتك.</p>`
+      html: `<p>أهلين، أنا <b>رفيق</b> — أستاذ الرزمة.</p>
+        <p>اسأل تعريف، شرح، حل مسألة، أو افتح صفحة. برّتب الجواب زي الحصة، ومش برمي روابط إلا إذا طلبت يوتيوب أو جوجل.</p>
+        <p class="muted">بدون نت: الرزم والشات والاختبارات. يوتيوب وجوجل بدهم نت.</p>`
     };
   }
 
@@ -667,41 +610,19 @@
     const key = chatKey(sid);
     S.chats[key] = S.chats[key] || [welcomeChat()];
     const msgs = S.chats[key];
-    const sug = window.SUGGESTIONS[sid] || window.SUGGESTIONS.all;
-    const dial = Object.entries((window.DIALECT && window.DIALECT.map) || {}).slice(0, 22);
+    const sug = (window.SUGGESTIONS[sid] || window.SUGGESTIONS.all).slice(0, 4);
     return `
       <div class="chat-page">
-        <aside class="chat-rail">
-          <button class="btn-gold" id="newchat" type="button">محادثة جديدة</button>
-          <div class="card">
-            <b>نطاق الرزمة</b>
-            <button class="choice ${!sid ? "ok" : ""}" data-go="chat">كل المواد</button>
-            ${window.SUBJECTS.map(
-              (x) =>
-                `<button class="choice ${sid === x.id ? "ok" : ""}" data-go="chat/${x.id}">${x.icon} ${x.short}</button>`
-            ).join("")}
-          </div>
-          <div class="card">
-            <b>بحث سريع</b>
-            <button class="choice" data-go="videos">مكتبة كل شروح يوتيوب</button>
-            <a class="choice" href="https://www.google.com/search?q=${encodeURIComponent(
-              "حادي عشر علمي فلسطين المنهج الفلسطيني"
-            )}" target="_blank" rel="noopener">جوجل مقيّد بالمنهاج</a>
-            <a class="choice" href="https://www.google.com" target="_blank" rel="noopener">جوجل مفتوح</a>
-          </div>
-          <div class="card">
-            <b>قاموس التعامل الغزّاوي</b>
-            <p class="muted">بفهم هلقيت وبدّي ووزمة ولخصلي.</p>
-            <div class="dialect-list">${dial.map(([a, b]) => `<div><b>${a}</b> ← ${b}</div>`).join("")}</div>
-          </div>
-        </aside>
         <section class="chat-stage">
           <header class="chat-head">
             <div>
-              <h2><img src="assets/chat-tutor.png" alt="" /> رفيق</h2>
-              <p>${s ? s.name : "كل الرزم"}</p>
+              <h2><span class="rafiq-dot">ر</span> رفيق</h2>
+              <p>${s ? s.name : "كل الرزم"} · يدرّس من الرزمة</p>
             </div>
-            <button class="tab ${S.autoSpeak ? "on" : ""}" id="autospeak" type="button">${S.autoSpeak ? "صوت ✓" : "صوت"}</button>
+            <div style="display:flex;gap:6px">
+              <button class="tab" id="newchat" type="button">جديد</button>
+              <button class="tab ${S.autoSpeak ? "on" : ""}" id="autospeak" type="button">${S.autoSpeak ? "صوت ✓" : "صوت"}</button>
+            </div>
           </header>
           <div class="subj-scroll">
             <button type="button" class="${!sid ? "on" : ""}" data-go="chat">الكل</button>
@@ -718,19 +639,17 @@
             <div class="composer-tools">
               <input id="filepdf" type="file" accept="application/pdf" hidden />
               <input id="fileimg" type="file" accept="image/*" hidden />
+              <button class="icon-btn" type="button" id="btnmics">ميك</button>
               <button class="icon-btn" type="button" id="btnpdf">PDF</button>
-              <button class="icon-btn" type="button" id="btnimg">صورة سؤال</button>
+              <button class="icon-btn" type="button" id="btnimg">صورة</button>
               <span id="attachbox" class="attach-chip hidden"></span>
             </div>
             <form class="composer" id="askform">
               <textarea name="q" id="askq" rows="2" placeholder="${
-                s
-                  ? "احكِ في " + s.name + "… افتح صفحة / لخصلي / كل فيديوهات يوتيوب / ابحثلي على جوجل"
-                  : "مثال: افتح صفحة 10 من رزمة الكيمياء — أو أي سؤال من 11 علمي"
+                s ? "سؤال في " + s.name + "…" : "اشرح / عرّف / حلّ / افتح صفحة…"
               }"></textarea>
               <button type="submit">إرسال</button>
             </form>
-            <p class="hint">Enter إرسال · Shift+Enter سطر جديد · ارفع صورة سؤال أو PDF من الرزمة</p>
           </div>
         </section>
       </div>`;
@@ -740,19 +659,12 @@
     if (m.role === "user") {
       return `<div class="msg user"><div class="bubble">${escapeHtml(m.text)}</div></div>`;
     }
-    const src = (m.sources || [])
-      .map(
-        (L) =>
-          `<button class="source" data-go="lesson/${L.id}">الوحدة ${L.unit} · ${L.title}</button>`
-      )
-      .join("");
     return `<div class="msg ai">
       <div class="bubble">
-        <div class="ai-head"><img src="assets/chat-tutor.png" alt="" /><b>رفيق الرزمة</b>
-          <button type="button" class="icon-btn speak-one" data-si="${i}">اقرأ الجواب</button>
+        <div class="ai-head"><span class="rafiq-dot">ر</span><b>رفيق</b>
+          <button type="button" class="icon-btn speak-one" data-si="${i}">اقرأ</button>
         </div>
         ${m.html}
-        <div>${src}</div>
       </div>
     </div>`;
   }
@@ -933,7 +845,7 @@
       <div class="page-head">
         <div>
           <h2>تقدّمك</h2>
-          <p>${(S.student && S.student.email) || (S.student && S.student.guest ? "ضيف" : "على هالجوال")} · ${(S.streak && S.streak.days) || 0} أيام</p>
+          <p>محفوظ على هالجوال · ${(S.streak && S.streak.days) || 0} أيام مذاكرة</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="tab" id="btn-export" type="button">تصدير</button>
@@ -997,17 +909,10 @@
   }
 
   function render() {
+    applyTheme();
     const r = route();
-    if (!S.student && r.page !== "welcome") {
-      try {
-        sessionStorage.setItem("tn-next", location.hash || "/dash");
-      } catch (e) {}
-      go("/welcome");
-      return;
-    }
-    if (!S.student || r.page === "welcome") {
-      app.innerHTML = viewWelcome();
-      bind();
+    if (r.page === "welcome") {
+      go("/dash");
       return;
     }
     let html = "";
@@ -1052,85 +957,14 @@
   }
 
   function bind() {
-    const form = $("#onboard");
-    if (form) {
-      document.querySelectorAll("#auth-tabs .tab").forEach((b) => {
-        b.addEventListener("click", () => {
-          document.querySelectorAll("#auth-tabs .tab").forEach((x) => x.classList.remove("on"));
-          b.classList.add("on");
-          form.dataset.auth = b.dataset.auth;
-          const extra = $("#reg-extra");
-          if (extra) extra.classList.toggle("hidden", b.dataset.auth !== "register");
-          const goBtn = $("#auth-go");
-          if (goBtn) goBtn.textContent = b.dataset.auth === "register" ? "إنشاء الحساب" : "دخول";
-        });
-      });
-      const guest = $("#guest-go");
-      if (guest) guest.addEventListener("click", enterGuest);
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        const email = String(fd.get("email") || "")
-          .trim()
-          .toLowerCase();
-        const pass = hashPass(fd.get("password"));
-        if (!email || String(fd.get("password") || "").length < 4) {
-          toast("إيميل وكلمة مرور (٤ حروف+)");
-          return;
-        }
-        if (form.dataset.auth === "register") {
-          const name = String(fd.get("name") || "").trim();
-          if (!name) {
-            toast("اكتب اسمك");
-            return;
-          }
-          if (ACCOUNTS[email]) {
-            toast("هالحساب موجود — اعمل دخول");
-            return;
-          }
-          S = Object.assign({}, defaults, {
-            student: { name, city: fd.get("city"), email, at: Date.now() }
-          });
-          ACCOUNTS[email] = { pass, data: S };
-          sessionEmail = email;
-          localStorage.setItem(sessKey, email);
-          saveAccounts(ACCOUNTS);
-          persist();
-          go("/dash");
-        } else {
-          const acc = ACCOUNTS[email];
-          if (!acc || acc.pass !== pass) {
-            toast("الإيميل أو كلمة المرور غلط");
-            return;
-          }
-          sessionEmail = email;
-          localStorage.setItem(sessKey, email);
-          S = Object.assign({}, defaults, acc.data || {});
-          if (!S.student) S.student = { name: email.split("@")[0], city: "غزة", email, at: Date.now() };
-          S.student.email = email;
-          persist();
-          go("/dash");
-        }
-      });
-    }
+    document.querySelectorAll("#btn-theme").forEach((b) => b.addEventListener("click", toggleTheme));
+    document.querySelectorAll("#btn-install").forEach((b) => b.addEventListener("click", installApp));
     document.querySelectorAll("[data-go]").forEach((el) => {
       el.addEventListener("click", (e) => {
         e.preventDefault();
         go("/" + el.getAttribute("data-go"));
       });
     });
-    const lo = $("#logout");
-    if (lo)
-      lo.addEventListener("click", () => {
-        if (confirm("خروج من الحساب؟ التقدم محفوظ على هالإيميل.")) {
-          persist();
-          sessionEmail = "";
-          localStorage.removeItem(sessKey);
-          S = Object.assign({}, defaults);
-          save(S);
-          go("/welcome");
-        }
-      });
     document.querySelectorAll("#btn-share").forEach((b) => {
       b.addEventListener("click", () => shareApp());
     });
@@ -1271,16 +1105,12 @@
     const ex = $("#btn-export");
     if (ex)
       ex.addEventListener("click", () => {
-        const payload = {
-          email: sessionEmail || (S.student && S.student.email) || "local",
-          account: sessionEmail ? ACCOUNTS[sessionEmail] : { pass: "", data: S }
-        };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "tareeq-najah-account.json";
+        a.download = "tareeq-najah-progress.json";
         a.click();
-        toast("تم التصدير — انقل الملف للجهاز الثاني");
+        toast("تم حفظ التقدم على الملف");
       });
     const imp = $("#file-import");
     if (imp)
@@ -1291,18 +1121,12 @@
         reader.onload = () => {
           try {
             const payload = JSON.parse(reader.result);
-            const email = String(payload.email || "")
-              .trim()
-              .toLowerCase();
-            const acc = payload.account;
-            if (!email || !acc || !acc.data) throw new Error("bad");
-            ACCOUNTS[email] = acc;
-            saveAccounts(ACCOUNTS);
-            sessionEmail = email;
-            localStorage.setItem(sessKey, email);
-            S = Object.assign({}, defaults, acc.data);
+            const data = payload.data || payload;
+            if (!data || typeof data !== "object") throw new Error("bad");
+            S = Object.assign({}, defaults, data);
+            if (!S.student) S.student = { name: "طالب", city: "غزة" };
             persist();
-            toast("تم الاستيراد — أهلين");
+            toast("تم الاستيراد");
             go("/dash");
           } catch {
             toast("ملف غير صالح");
@@ -1396,7 +1220,17 @@
   }
 
   async function extractPdf(file) {
-    if (!window.pdfjsLib) throw new Error("pdfjs");
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
     const buf = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
     let out = "";

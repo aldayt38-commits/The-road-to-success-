@@ -95,14 +95,18 @@
     return nums;
   }
 
+  function wantsLinks(q) {
+    const n = norm(q);
+    return /يوتيوب|قناه|فيديو|جوجل|google|ابحث|بحث|مصدر|مصادر|youtube|search/.test(n);
+  }
+
   function intentOf(q) {
     const n = norm(q);
     if (/^(السلام|مرحبا|هلا|اهلين|اهلا|hi|hello|صباح|مساء|كيف حالك|كيفك|شو اخبارك)/.test(n) && n.split(" ").length < 8)
       return "greet";
     if (/شكر|يسلم|تسلم|يعطيك العافيه/.test(n) && n.split(" ").length < 6) return "thanks";
     if (/قاموس|كيف احكي|شو بتقدر|ماذا تستطيع|اوامر|help|مساعده/.test(n)) return "help";
-    if (/جوجل|google|ابحث|بحث مفتوح|سيرش|search/.test(n) && /جوجل|google|ابحث|بحث|سيرش|search/.test(n))
-      return "search";
+    if (/جوجل|google|ابحث|بحث مفتوح|سيرش|search/.test(n)) return "search";
     if (/يوتيوب|قناه|فيديو|فيديوهات|شرح مصور|youtube/.test(n)) return "youtube";
     if (/افتح/.test(n) && (/صفح|رزمه|رزمة|وزمه|كتاب/.test(n) || /\d/.test(n))) return "open_page";
     if (/لخص|ملخص|اختصر/.test(n)) return "summarize";
@@ -180,123 +184,87 @@
 
   function researchHtml(topic, lessons, subject) {
     const p = packLinks(topic, lessons, subject);
-    return `<div class="research">
-      <b>مصادر البحث — الرزمة أولاً، وبعدين كل الشروح</b>
-      <p class="muted">رفيق بجاوبك من رزمة 11 علمي غزة. تحت: يوتيوب لكل فيديوهات الشرح، وجوجل مقيّد بالمنهاج، وجوجل مفتوح لأي سؤال.</p>
+    return `<div class="research show">
+      <b>إذا بدك تسمع شرح صوت — هون (بدها نت)</b>
       <div class="research-grid">
-        <a class="r-card" href="${p.ytAll}" target="_blank" rel="noopener">يوتيوب · كل شروح 11 علمي<small>كل الفيديوهات اللي بتشرح الفكرة، مش قناة واحدة</small></a>
-        <a class="r-card" href="${p.ytPal}" target="_blank" rel="noopener">يوتيوب · المنهاج الفلسطيني<small>بحث مقيّد: حادي عشر علمي فلسطين</small></a>
-        <a class="r-card" href="${p.gOpen}" target="_blank" rel="noopener">جوجل مفتوح<small>بحث حرّ عن سؤالك كما هو</small></a>
-        <a class="r-card" href="${p.gPal}" target="_blank" rel="noopener">جوجل مقيّد بالمنهاج<small>نفس السؤال + المنهج الفلسطيني</small></a>
-        <a class="r-card" href="${p.elearn}" target="_blank" rel="noopener">البوابة التعليمية<small>دروس مصوّرة رسمية حسب فهرس الكتاب</small></a>
-        <a class="r-card" href="${p.gPdf}" target="_blank" rel="noopener">ملفات PDF<small>أوراق وملخصات على جوجل</small></a>
+        <a class="r-card" href="${p.ytPal}" target="_blank" rel="noopener">يوتيوب · المنهاج الفلسطيني</a>
+        <a class="r-card" href="${p.gPal}" target="_blank" rel="noopener">جوجل · مقيّد بالمنهاج</a>
       </div>
     </div>`;
   }
 
-  function ytBlock(lessons, subject, topic) {
-    return researchHtml(topic, lessons, subject);
+  function lessonLink(L) {
+    if (!L) return "";
+    return `<button class="source" data-go="lesson/${L.id}">افتح الدرس: ${L.title}</button>`;
   }
 
-  function refsHtml(lessons, extras) {
-    const items = [];
-    (lessons || []).forEach((L) => {
-      const s = subjOf(L.subject);
-      const pg = window.pagesOfLesson ? window.pagesOfLesson(L.id) : null;
-      const pageBit = pg ? ` · صفحات ${pg.from}–${pg.to} (ترقيم الرزمة داخل المنصة)` : "";
-      items.push(
-        `كتاب «${s ? s.book : L.subject}» — الصف 11 علمي — رزمة غزة — الفصل ${L.sem === 1 ? "الأول" : "الثاني"} — الوحدة ${L.unit}: ${L.unitTitle} — الدرس: ${L.title}${pageBit}`
-      );
-    });
-    (extras || []).forEach((e) => items.push(e));
-    items.push("مصدر الإجابة الأساسي: رزم طريق النجاح المبنية على فهارس المنهج الفلسطيني لقطاع غزة.");
-    items.push("مساند: يوتيوب (كل شروح 11 علمي + بحث مقيّد بالمنهاج الفلسطيني) · جوجل المفتوح · جوجل المقيّد · البوابة التعليمية الفلسطينية.");
-    if (!items.length) items.push("لم يُعتمد درس محدد؛ الإجابة عامة من قاموس التعامل أو مساعدة الاستخدام.");
-    return `<div class="refs"><b>المراجع — من وين جاوبتك</b><ol>${items
-      .map((x) => `<li>${x}</li>`)
-      .join("")}</ol></div>`;
-  }
-
-  function explainLesson(L, mode) {
+  function teachLesson(L, mode) {
     const s = subjOf(L.subject);
     const plain = strip(L.html);
-    const sentences = plain.split(/[.。؟!]/).map((x) => x.trim()).filter((x) => x.length > 20);
-    const take = mode === "summarize" ? 3 : 6;
-    let html = `<h3>${L.title}</h3>
-      <p class="muted">${s ? s.name : ""} · الفصل ${L.sem} · الوحدة ${L.unit}: ${L.unitTitle}</p>`;
+    const sentences = plain.split(/[.。؟!]/).map((x) => x.trim()).filter((x) => x.length > 18);
+    const def = (L.terms && L.terms[0]) ? L.terms[0] : null;
+    const check = def ? `عرّف بجملتك: ${def.t}` : (L.objectives && L.objectives[0]) || "أعد الفكرة بجملتين من عندك.";
+
     if (mode === "summarize") {
-      html += `<p>يا زلمة باختصار من الرزمة: <b>${L.summary}</b></p>`;
-    } else {
-      html += `<p>يلا نرتبها: المقدمة باللهجة، والتعريف والقانون زي الكتاب عشان الوزاري.</p>
-        <p><b>الفكرة:</b> ${L.summary}</p>`;
+      return `<p class="teach-hook">باختصار من الرزمة:</p>
+        <p><b>${L.title}</b> — ${L.summary}</p>
+        ${def ? `<p><b>${def.t}:</b> ${def.d}</p>` : ""}
+        ${lessonLink(L)}`;
     }
-    html += `<p>${sentences.slice(0, take).join(". ")}.</p>`;
-    if (L.formulas && L.formulas.length && mode !== "summarize") {
-      html += `<p><b>احفظ القانون بالفصحى كما في الكتاب:</b></p>`;
-      L.formulas.forEach((f) => {
-        html += `<div class="formula">${f.expr}</div><p class="muted">${f.name}${f.note ? " — " + f.note : ""}</p>`;
-      });
+
+    let html = `<p class="teach-hook">يلا نرتّبها زي الحصة: الفكرة باللهجة، والتعريف زي الكتاب.</p>
+      <p class="muted">${s ? s.name : ""} · الوحدة ${L.unit}: ${L.unitTitle}</p>
+      <h3>${L.title}</h3>
+      <p><b>الفكرة:</b> ${L.summary}</p>`;
+
+    if (def) {
+      html += `<div class="teach-block"><b>التعريف (فصحى الكتاب):</b> ${def.t} — ${def.d}</div>`;
     }
-    if (mode !== "summarize" && L.terms && L.terms.length) {
-      html += `<p><b>مصطلحات الرزمة (تعريف وزاري):</b></p><ul>${L.terms.map((t) => `<li><b>${t.t}:</b> ${t.d}</li>`).join("")}</ul>`;
+    if (sentences[0]) html += `<p>${sentences.slice(0, 3).join(". ")}.</p>`;
+
+    if (L.formulas && L.formulas[0] && mode !== "define") {
+      const f = L.formulas[0];
+      html += `<p><b>القانون:</b> ${f.name}</p><div class="formula">${f.expr}</div>`;
     }
-    if (L.example && mode !== "summarize") {
-      html += `<div class="callout"><b>مثال محلول بأسلوب الكتاب:</b> ${L.example.q}<br>${L.example.steps
-        .map((st, i) => i + 1 + ") " + st)
-        .join("<br>")}<br><b>الناتج:</b> ${L.example.ans}</div>`;
+    if (L.example && mode !== "define" && mode !== "summarize") {
+      html += `<div class="callout"><b>مثال:</b> ${L.example.q}<br>${(L.example.steps || []).slice(0, 4).map((st, i) => i + 1 + ") " + st).join("<br>")}<br><b>الناتج:</b> ${L.example.ans}</div>`;
     }
-    if (L.mistakes && L.mistakes[0]) {
-      html += `<div class="callout warn"><b>غلط شائع بالامتحان — دير بالك:</b> ${L.mistakes[0]}</div>`;
+    if (L.mistakes && L.mistakes[0] && mode !== "define") {
+      html += `<div class="callout warn"><b>غلط وزاري:</b> ${L.mistakes[0]}</div>`;
     }
-    if (mode !== "summarize") {
-      html += `<p><b>أهداف الدرس:</b> ${L.objectives.join("، ")}.</p>`;
-    }
+    html += `<div class="teach-check"><b>تأكد إنك فهمت:</b> ${check}</div>`;
+    html += lessonLink(L);
     return html;
   }
 
   function helpHtml() {
-    const ex = (window.DIALECT && window.DIALECT.examples) || [];
-    return `<p>أهلين، أنا <b>رفيق الرزمة</b> تبع <b>طريق النجاح</b>. احكِ معي زي ما بتحكي مع حدّ من غزة — بفهم هلقيت وبدّي ولخّصلي ووزمة.</p>
-      <p><b>شو بقدر أعمل:</b></p>
+    return `<p>أنا <b>رفيق</b> — أستاذ الرزمة، مش محرّك بحث.</p>
+      <p>احكِ عادي: اشرح، عرّف، حلّ، لخّص، افتح صفحة. بجاوب من رزمة 11 علمي غزة.</p>
       <ul>
-        <li>افتح صفحة من أي رزمة وأشرحها</li>
-        <li>لخّص درس أو درسين أو وحدة كاملة</li>
-        <li>أشرح وأحل من الرزمة — وأي سؤال تسأله بجاوبك من أقرب درس</li>
-        <li>ألخّص PDF أو صورة ترفعها، وأحاول أحل أسئلة الصورة</li>
-        <li>أفتح لك <b>كل فيديوهات الشرح على يوتيوب</b> لحادي عشر علمي</li>
-        <li>بحث جوجل <b>مقيّد بالمنهاج</b> وبحث جوجل <b>مفتوح</b></li>
-        <li>تحت كل جواب بكتب المراجع ومن وين جاوبت</li>
-        <li>أحل مسائل بأرقام: قانون، تعويض، ناتج (رياضيات / فيزياء / كيمياء)</li>
-        <li>تقدر تحكي بالميكروفون وأقرأ لك الجواب بالصوت</li>
+        <li>بدون نت: الشرح، الرزم، الاختبارات</li>
+        <li>مع نت: يوتيوب وجوجل — بس إذا طلبتهم</li>
       </ul>
-      <p><b>أمثلة:</b></p>
-      <ul>${ex.map((e) => `<li>${e}</li>`).join("")}
-        <li>ابحثلي على جوجل المفتوح عن قانون هس</li>
-        <li>كل فيديوهات يوتيوب لشرح المتجهات</li>
-      </ul>`;
+      <p>مثال: «اشرح قوانين نيوتن» · «حلّي كتلة 2 كغ وقوة 10 ن» · «افتح صفحة 10 كيمياء»</p>`;
   }
 
   function greetHtml() {
-    return `<p>وعليكم السلام — أهلين فيك في <b>طريق النجاح</b>.</p>
-      <p>أنا رفيق، هون الدردشة كاملة. احكِ عادي: «افتح صفحة 10 من الكيمياء»، «لخصلي الدرس الأول»، «كل فيديوهات نيوتن»، «ابحثلي على جوجل».</p>
-      <p>بجاوب من الرزمة أولاً، وبفتح لك يوتيوب لكل شروح 11 علمي + جوجل المقيّد والمفتوح. تحت كل جواب بتلاقي المراجع.</p>`;
+    return `<p>وعليكم السلام — أهلين.</p>
+      <p>اسأل أي سؤال من الرزمة، وبرّتبلك الحصة: تعريف، قانون، مثال، وسؤال تتأكد منه.</p>`;
   }
 
   function attachSummary(text) {
     const cut = String(text || "").replace(/\s+/g, " ").trim().slice(0, 4000);
-    if (cut.length < 20) return { html: "<p>الملف فاضي أو ما قدرت أقرأ منه نص واضح. صوّر أوضح أو انسخ السؤال.</p>", lessons: [] };
-    const ranked = scoreQuery(cut, null).filter((x) => x.s > 6).slice(0, 3);
-    let html = `<p>قرأت النص المرفوع. هذا ملخص سريع + ربطه برزمة 11 علمي غزة:</p>
-      <div class="callout">${cut.slice(0, 420)}${cut.length > 420 ? "…" : ""}</div>`;
-    if (ranked.length) {
-      html += `<p>أقرب دروس الرزمة لهاي المادة:</p>`;
-      ranked.forEach((x) => {
-        html += explainLesson(x.L, "summarize");
-      });
-    } else {
-      html += `<p>ما لقيت تطابق قوي مع رزمة الحادي عشر علمي. انسخ السؤال أو حدد المادة — وبرضه فتحت لك البحث.</p>`;
-    }
+    if (cut.length < 20) return { html: "<p>ما قدرت أقرأ نص واضح. صوّر أوضح أو انسخ السؤال.</p>", lessons: [] };
+    const ranked = scoreQuery(cut, null).filter((x) => x.s > 6).slice(0, 2);
+    let html = `<p>قرأت المرفق. أقرب درس بالرزمة:</p><div class="callout">${cut.slice(0, 280)}${cut.length > 280 ? "…" : ""}</div>`;
+    if (ranked.length) ranked.forEach((x) => { html += teachLesson(x.L, "summarize"); });
+    else html += `<p>حدّد المادة أو انسخ السؤال، بحلّه من الرزمة.</p>`;
     return { html, lessons: ranked.map((x) => x.L) };
+  }
+
+  function maybeLinks(spoken, lessons, subject, force) {
+    if (force || wantsLinks(spoken)) return researchHtml(spoken, lessons, subject);
+    return "";
   }
 
   function buildAnswer(rawQ, opts) {
@@ -308,53 +276,30 @@
     const subject = opts.subject || subs[0] || CTX.subject || null;
 
     if (intent === "greet") {
-      return {
-        html: greetHtml() + researchHtml(spoken, [], subject) + refsHtml([], ["قاموس التعامل الغزّاوي داخل المنصة"]),
-        sources: [],
-        intent
-      };
+      return { html: greetHtml(), sources: [], intent };
     }
     if (intent === "thanks") {
-      return { html: "<p>العفو يا بطل، يسلمو. جاهز لأي درس كمان.</p>" + refsHtml(CTX.lessons || []), sources: CTX.lessons || [], intent };
+      return { html: "<p>العفو. جاهز لأي درس كمان — اسأل.</p>", sources: CTX.lessons || [], intent };
     }
     if (intent === "help") {
-      return { html: helpHtml() + researchHtml("", [], subject) + refsHtml([], ["قاموس التعامل — لهجة غزة/فلسطين"]), sources: [], intent };
+      return { html: helpHtml(), sources: [], intent };
     }
 
     if (opts.attachmentText && (intent === "summarize" || intent === "solve" || intent === "ask" || /ملف|صوره|صورة|pdf/i.test(spoken))) {
       const att = attachSummary(opts.attachmentText);
-      const extra =
-        intent === "solve"
-          ? "<p>إذا السؤال محلول بأسلوب الكتاب، طابقته مع أقرب درس. تأكد من المعطيات بعد القراءة الضوئية.</p>"
-          : "";
       CTX.lessons = att.lessons;
       CTX.lastIntent = intent;
-      return {
-        html: att.html + extra + ytBlock(att.lessons, subject, spoken) + refsHtml(att.lessons, [opts.attachmentName || "ملف مرفوع من الطالب"]),
-        sources: att.lessons,
-        intent
-      };
+      return { html: att.html + maybeLinks(spoken, att.lessons, subject, false), sources: att.lessons, intent };
     }
 
     if (intent === "youtube" || intent === "search") {
       const ranked = scoreQuery(spoken, subject);
       const L = (ranked[0] && ranked[0].s > 3 && ranked[0].L) || (subject ? lessonsOf(subject)[0] : null);
       const lessons = L ? [L] : [];
-      let html = "";
-      if (intent === "youtube") {
-        html = `<p>تمام — فتحت لك <b>كل فيديوهات الشرح</b> لحادي عشر علمي على يوتيوب لهاي الفكرة، وكمان بحث مقيّد بالمنهاج الفلسطيني.</p>
-          <p>أنا بجاوبك من الرزمة؛ الفيديو عشان تسمع صوت أستاذ. إذا وصفتلي اللي قاله الأستاذ، برّبطه بالكتاب.</p>`;
-        if (L) html += explainLesson(L, "summarize");
-      } else {
-        html = `<p>بحث مزدوج: <b>جوجل المفتوح</b> لسؤالك كما هو، و<b>جوجل المقيّد</b> بالمنهاج الفلسطيني، ويوتيوب لكل الشروح.</p>`;
-        if (L) html += `<p>وأقرب درس بالرزمة: <b>${L.title}</b> — ${L.summary}</p>`;
-      }
+      let html = L ? teachLesson(L, "summarize") : "<p>حدّد الدرس، وبفتح لك البحث.</p>";
+      html += researchHtml(spoken, lessons, subject);
       CTX.lessons = lessons;
-      return {
-        html: html + ytBlock(lessons, subject, spoken) + refsHtml(lessons, ["بحث يوتيوب/جوجل: مفتوح + مقيّد بـ حادي عشر علمي فلسطين"]),
-        sources: lessons,
-        intent
-      };
+      return { html, sources: lessons, intent };
     }
 
     if (intent === "open_page") {
@@ -362,30 +307,22 @@
       const page = pages[0] || CTX.page || 1;
       const targets = subs.length ? subs : subject ? [subject] : [];
       if (!targets.length) {
-        return {
-          html: `<p>قلّي أي رزمة: كيمياء، فيزياء، رياضيات… مثلاً: افتح صفحة ${page} من رزمة الكيمياء.</p>` + researchHtml(spoken, [], null) + refsHtml([]),
-          sources: [],
-          intent
-        };
+        return { html: `<p>قلّي أي رزمة: كيمياء، فيزياء، رياضيات… مثلاً: افتح صفحة ${page} من الكيمياء.</p>`, sources: [], intent };
       }
-      let html = `<p>فتحت لك صفحة <b>${page}</b> من الرزمة (ترقيم طريق النجاح حسب ترتيب دروس الكتاب). هاد الشرح من الدرس اللي بيقابل هالصفحة:</p>`;
+      let html = `<p>صفحة <b>${page}</b> من الرزمة — هاد الدرس اللي بيقابلها:</p>`;
       const used = [];
       targets.forEach((sid) => {
         const rec = window.lessonAtPage ? window.lessonAtPage(sid, page, null) : null;
         const L = rec ? lessonById(rec.lesson) : lessonsOf(sid)[0];
         if (!L) return;
         used.push(L);
-        const s = subjOf(sid);
-        html += `<div class="callout">رزمة ${s.name} · صفحة ${page} ≈ الدرس «${L.title}» (صفحات ${rec ? rec.from + "–" + rec.to : "—"}) · الوحدة ${L.unit}</div>`;
-        html += explainLesson(L, "explain");
-        html += `<p><button class="source" data-go="pack/${sid}/${page}">افتح الرزمة على صفحة ${page}</button></p>`;
+        html += teachLesson(L, "explain");
+        html += `<p><button class="source" data-go="pack/${sid}/${page}">افتح الرزمة ص ${page}</button></p>`;
       });
       CTX.subject = targets[0];
       CTX.page = page;
       CTX.lessons = used;
-      CTX.lastIntent = "open_page";
-      html += ytBlock(used, targets[0], spoken);
-      return { html: html + refsHtml(used), sources: used, intent };
+      return { html, sources: used, intent };
     }
 
     let chosen = pickLessonsFromSpeech(spoken, subject);
@@ -406,36 +343,30 @@
       const sol = window.Solver ? window.Solver.solve(spoken, null) : "";
       const hasAuto = sol && sol.indexOf("حل بأسلوب وزاري") !== -1;
       if (hasAuto) {
-        return {
-          html: `<p>حليتها من القوانين، حتى لو ما انربطت بدرس معيّن. راجع الرزمة بعدين.</p>${sol}` +
-            ytBlock([], subject, spoken) + refsHtml([], ["حل رقمي من قوانين الصف 11 علمي"]),
-          sources: [],
-          intent
-        };
+        return { html: `<p>حليتها من قوانين الصف:</p>${sol}`, sources: [], intent };
       }
-      const html = `<p>ما مسكت درس واحد واضح من الرزمة، بس ما رح أتركك بلا جواب.</p>
-        <p>اشرح سؤالك بجملة أو حدّد المادة، أو اكتب أرقام المسألة (كتلة، قوة، زاوية…). وهون بحث مفتوح + يوتيوب لكل شروح 11 علمي:</p>
-        ${helpHtml()}`;
-      return { html: html + ytBlock([], subject, spoken) + refsHtml([]), sources: [], intent };
+      return {
+        html: `<p>وضّح المادة أو اكتب السؤال أوضح (قانون، تعريف، أرقام المسألة).</p>${helpHtml()}`,
+        sources: [],
+        intent
+      };
     }
 
-    const mode = intent === "summarize" ? "summarize" : "explain";
+    const mode = intent === "summarize" ? "summarize" : intent === "define" ? "define" : "explain";
     let html = "";
-    if (intent === "summarize") html += `<p>ملخص المطلوب من الرزمة، من غير حشو:</p>`;
-    else if (intent === "solve") {
-      html += `<p>يلا نحلّها بأسلوب الوزاري: المعطيات → القانون بالفصحى → التعويض → الناتج. بعدين مثال الرزمة والمراجع.</p>`;
+    if (intent === "solve") {
+      html += `<p>نحلّ بأسلوب وزاري: معطيات → قانون → تعويض → ناتج.</p>`;
       if (window.Solver) html += window.Solver.solve(spoken, chosen[0]);
-    } else html += `<p>شرح من الرزمة، وبعده كل فيديوهات يوتيوب وجوجل المفتوح والمقيّد:</p>`;
-
+    }
     chosen.forEach((L) => {
-      html += explainLesson(L, intent === "solve" ? "explain" : mode);
+      html += teachLesson(L, intent === "solve" ? "explain" : mode);
     });
-    html += ytBlock(chosen, subject, spoken);
+    html += maybeLinks(spoken, chosen, subject, false);
     CTX.subject = chosen[0].subject;
     CTX.lessons = chosen;
     CTX.lastIntent = intent;
     CTX.lastQ = spoken;
-    return { html: html + refsHtml(chosen), sources: chosen, intent };
+    return { html, sources: chosen, intent };
   }
 
   window.Rafiq = {
