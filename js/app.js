@@ -359,24 +359,19 @@
     });
     return `
       <div class="page-head">
-        <div>
-          <p class="muted"><a href="#/subjects">المواد</a> / ${s.name}</p>
-          <h2>${s.name}</h2>
-          <p>${s.book} · ${s.hours} حصص أسبوعياً تقريباً</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tab on" data-go="chat/${s.id}">اسأل رفيق في ${s.short}</button>
-          <button class="tab" data-go="videos">شروح يوتيوب</button>
-        </div>
+        <p class="muted"><a href="#/subjects">المواد</a></p>
+        <h2>${s.name}</h2>
+        <p>${s.book}</p>
       </div>
-      <div class="card" style="margin-bottom:14px">
-        <b>إنجازك في المادة ${pct(s.id)}%</b>
+      <div class="card" style="margin-bottom:12px">
+        <b>${pct(s.id)}% من دروس المادة</b>
         <div class="progress-mini"><i style="width:${pct(s.id)}%"></i></div>
       </div>
+      <button class="btn-primary" data-go="chat/${s.id}" style="margin-bottom:12px">اسأل رفيق في ${s.short}</button>
       ${units
         .map(
-          (u) => `
-        <details class="unit-acc" ${u.sem === 1 ? "open" : ""}>
+          (u, i) => `
+        <details class="unit-acc" ${i === 0 ? "open" : ""}>
           <summary>
             <span>الفصل ${u.sem === 1 ? "الأول" : "الثاني"} · الوحدة ${u.unit}: ${u.title}</span>
             <span class="tag">${u.items.length} دروس</span>
@@ -399,7 +394,7 @@
         </details>`
         )
         .join("")}
-      <h3 style="margin:16px 0 8px;color:var(--gold-2)">اختبارات المادة</h3>
+      <p class="sec">اختبارات المادة</p>
       ${window.QUIZZES.filter((q) => q.subject === id)
         .map(
           (q) =>
@@ -526,21 +521,16 @@
     if (window.buildPageMap) window.buildPageMap();
     return `
       <div class="page-head">
-        <div>
-          <h2>الرزم التعليمية — كلياتها</h2>
-          <p>اضغط أي رزمة لتفتحها صفحة بصفحة، أو قول لرفيق: افتح صفحة 10 من الكيمياء.</p>
-        </div>
-        <a class="tab on" href="${MOE}" target="_blank" rel="noopener">حمّل الرزم الرسمية من الوزارة</a>
+        <h2>الرزم</h2>
+        <p>افتح المادة صفحة بصفحة. عدد الدروس من الفهرس داخل المنصة.</p>
       </div>
-      <div class="pack-grid">
+      <div class="subj-grid">
         ${window.SUBJECTS.map((s) => {
           const n = lessonsOf(s.id).length;
-          return `<article class="card pack-card subject-card" style="--band:${s.color}" data-go="pack/${s.id}">
+          return `<article class="subj-tile" data-go="pack/${s.id}">
             <div class="s-icon" style="background:${s.color}">${s.icon}</div>
-            <h3>رزمة ${s.name}</h3>
-            <p class="muted">${s.book}</p>
-            <p class="muted">${n} دروس · فصلان · ترقيم صفحات داخل المنصة</p>
-            <span class="tag">افتح الرزمة</span>
+            <b>${s.name}</b>
+            <span class="muted">${n} دروس</span>
           </article>`;
         }).join("")}
       </div>`;
@@ -849,8 +839,8 @@
       </div>
       <div class="card" style="margin-bottom:14px;text-align:center">
         <svg class="score-ring" viewBox="0 0 36 36">
-          <path d="M18 2.6a15.4 15.4 0 1 1 0 30.8 15.4 15.4 0 1 1 0-30.8" fill="none" stroke="#1c1810" stroke-width="3"/>
-          <path d="M18 2.6a15.4 15.4 0 1 1 0 30.8 15.4 15.4 0 1 1 0-30.8" fill="none" stroke="#d4af37" stroke-width="3"
+          <path d="M18 2.6a15.4 15.4 0 1 1 0 30.8 15.4 15.4 0 1 1 0-30.8" fill="none" stroke="currentColor" stroke-opacity="0.15" stroke-width="3"/>
+          <path d="M18 2.6a15.4 15.4 0 1 1 0 30.8 15.4 15.4 0 1 1 0-30.8" fill="none" stroke="#3b9ad6" stroke-width="3"
             stroke-dasharray="${o.p},100" stroke-linecap="round"/>
         </svg>
         <h3>${o.p}% من دروس الرزم</h3>
@@ -864,7 +854,7 @@
             <p class="muted">${doneCount(s.id)}/${lessonsOf(s.id).length} · ${p}%</p></div>`;
         }).join("")}
       </div>
-      <h3 style="margin:18px 0 8px;color:var(--gold-2)">دروس محفوظة</h3>
+      <p class="sec">دروس محفوظة</p>
       ${
         stars.length
           ? stars
@@ -886,15 +876,9 @@
     ).slice(0, 12);
     const p = packOf(n);
     return `
-      <div class="page-head"><div><h2>نتائج: ${escapeHtml(n)}</h2></div></div>
-      <div class="search-actions">
-        <a class="r-card" href="${p.ytAll}" target="_blank" rel="noopener">يوتيوب · كل شروح 11 علمي</a>
-        <a class="r-card" href="${p.ytPal}" target="_blank" rel="noopener">يوتيوب · المنهاج الفلسطيني</a>
-        <a class="r-card" href="${p.gOpen}" target="_blank" rel="noopener">جوجل مفتوح</a>
-        <a class="r-card" href="${p.gPal}" target="_blank" rel="noopener">جوجل مقيّد بالمنهاج</a>
-      </div>
+      <div class="page-head"><h2>نتائج</h2><p>${escapeHtml(n)}</p></div>
       <div class="card" style="margin-bottom:12px">${ans.html}</div>
-      <h3 style="color:var(--gold-2)">دروس مطابقة</h3>
+      <p class="sec">دروس مطابقة</p>
       ${hits
         .map((L) => {
           const s = subjectById(L.subject);

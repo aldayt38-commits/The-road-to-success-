@@ -1,4 +1,4 @@
-const CACHE = "tareeq-najah-v4";
+const CACHE = "tareeq-najah-v5";
 const CORE = [
   "./",
   "./index.html",
