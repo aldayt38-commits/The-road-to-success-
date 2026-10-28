@@ -1,0 +1,6 @@
+.DS_Store
+Thumbs.db
+.arena
+.cache
+.local
+*.log
