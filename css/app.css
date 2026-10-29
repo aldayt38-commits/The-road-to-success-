@@ -79,6 +79,7 @@ body {
   overscroll-behavior: none;
 }
 button, input, textarea, select { font-family: inherit; color: inherit; font-size: 16px; }
+input, textarea, select { background: var(--input); color: var(--ink); border-color: var(--line); }
 a { color: var(--blue); text-decoration: none; }
 img { max-width: 100%; display: block; }
 button { cursor: pointer; }

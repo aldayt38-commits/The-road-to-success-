@@ -264,7 +264,11 @@
           <button class="icon-round" id="btn-install" type="button" title="نزّل التطبيق">↓</button>
         </div>
       </header>
-      <main class="content ${mode === "chat" ? "content-chat" : ""}">${inner}</main>
+      <main class="content ${mode === "chat" ? "content-chat" : ""}">${
+        navigator.onLine || mode === "chat"
+          ? ""
+          : `<div class="offline-bar">وضع بدون نت — الدروس ورفيق والاختبارات شغّالين. يوتيوب وجوجل بدهم نت.</div>`
+      }${inner}</main>
       <nav class="mobile-nav">
         ${MOBILE.map(
           (n) =>
@@ -277,7 +281,6 @@
   function viewMore() {
     return `
       <div class="page-head"><h2>المزيد</h2><p>التطبيق والأقسام الأخرى</p></div>
-      ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق والاختبارات شغّالين</div>`}
       <div class="card install-box">
         <h3>تثبيت على الجوال</h3>
         <p class="muted">الرزم والدروس ورفيق المحلي والاختبارات تشتغل بدون نت. يوتيوب وجوجل يحتاجوا نت.</p>
@@ -302,7 +305,6 @@
     const cont = window.LESSONS.find((l) => !S.progress[l.id]?.done) || window.LESSONS[0];
     const cs = subjectById(cont.subject);
     return `
-      ${navigator.onLine ? "" : `<div class="offline-bar">بدون نت — الرزم ورفيق شغّالين</div>`}
       <div class="page-head">
         <h2>مرحباً</h2>
         <p>حادي عشر علمي · قطاع غزة</p>
@@ -655,6 +657,9 @@
 
   function viewVideos() {
     const V = window.VIDEOS;
+    if (!V) {
+      return `<div class="page-head"><h2>مكتبة شروح يوتيوب</h2><p>هالقسم بدّه نت أول مرة. الدروس ورفيق شغّالين بدون نت.</p></div>`;
+    }
     return `
       <div class="page-head">
         <div>
@@ -664,7 +669,7 @@
         <button class="tab on" data-go="chat">اسأل رفيق يفتحها لك</button>
       </div>
       <form class="card" id="ytsearch" style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input name="q" required placeholder="مثال: قوانين نيوتن / المتجهات / قانون هس / hope and wish" style="flex:1;min-width:220px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#0b0a08" />
+        <input name="q" required placeholder="مثال: قوانين نيوتن / المتجهات / قانون هس / hope and wish" style="flex:1;min-width:220px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--ink)" />
         <button class="tab on" type="submit">كل فيديوهات يوتيوب</button>
       </form>
       <div class="grid-3" style="margin-bottom:18px">
@@ -887,6 +892,12 @@
   }
 
   function render() {
+    try {
+    if (!window.LESSONS || !window.SUBJECTS || !window.LESSONS.length) {
+      app.innerHTML =
+        `<div class="app-shell"><main class="content"><div class="page-head"><h2>المنصة لسه ما تحمّلت</h2><p>افتح الموقع وأنت متصل بالنت مرة واحدة، وبعدها الدروس ورفيق والاختبارات يشتغلوا بدون نت.</p></div></main></div>`;
+      return;
+    }
     applyTheme();
     const r = route();
     if (r.page === "welcome") {
@@ -931,6 +942,10 @@
     if (r.page === "chat") {
       const box = $("#msgs");
       if (box) box.scrollTop = box.scrollHeight;
+    }
+    } catch (err) {
+      app.innerHTML =
+        `<div class="app-shell"><main class="content"><div class="page-head"><h2>صار خطأ بالعرض</h2><p>حدّث الصفحة. إذا أنت بدون نت، افتح الموقع مرة وأنت متصل حتى يتخزّن.</p></div></main></div>`;
     }
   }
 
@@ -1184,6 +1199,10 @@
   }
 
   async function handleFile(file, kind) {
+    if (!navigator.onLine && ((kind === "pdf" && !window.pdfjsLib) || (kind === "image" && !window.Tesseract))) {
+      toast("قراءة الصورة/PDF بدها نت أول مرة. الدروس ورفيق شغّالين بدون نت.");
+      return;
+    }
     toast("قاعد أقرأ الملف…");
     try {
       let text = "";
@@ -1295,5 +1314,7 @@
   }
 
   window.addEventListener("hashchange", render);
+  window.addEventListener("online", render);
+  window.addEventListener("offline", render);
   render();
 })();

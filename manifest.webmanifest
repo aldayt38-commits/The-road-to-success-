@@ -5,7 +5,7 @@
   "description": "رزم الحادي عشر علمي غزة: دروس، رفيق، اختبارات. تشتغل بدون نت بعد التثبيت.",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

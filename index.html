@@ -15,7 +15,9 @@
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <p style="padding:24px;font-family:Tahoma,Arial,sans-serif;color:#1a2b45">قاعد يحمّل طريق النجاح…</p>
+  </div>
   <script src="data/subjects.js"></script>
   <script src="data/lessons.js"></script>
   <script src="data/quizzes.js"></script>
@@ -30,7 +32,12 @@
   <script src="js/app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js", { scope: "./" }).then(function (reg) {
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+          if (reg.update) reg.update();
+        }).catch(function () {});
+      });
     }
   </script>
 </body>
